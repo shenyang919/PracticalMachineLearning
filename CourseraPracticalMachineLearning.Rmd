@@ -1,0 +1,66 @@
+---
+title: "Practical Machine Learning"
+author: "Shen Yang"
+date: "March 22, 2015"
+output: html_document
+---
+
+## Getting Data
+```{r, echo=TRUE}
+raw_training <- read.csv("pml-training.csv", header=TRUE, sep=",", na.strings=c("NA", "", "#DIV/0!"))
+raw_testing <- read.csv("pml-testing.csv", header=TRUE, sep=",", na.strings=c("NA", "", "#DIV/0!"))
+str(raw_training)
+```
+
+## Cleaning Data
+As can be seen, there are a large number of empty records or NA's in the training data. To clean the data up, we will
+remove columns that have more than 10% NA's. We will also remove columns that are of no interest to
+the model building.
+```{r echo=TRUE}
+## The first 7 columns are really some side info
+raw_training <- raw_training[,-c(1:7)]
+## Find columns with >= 90% non-NA
+valid_columns <- c((colSums(!is.na(raw_training[,-ncol(raw_training)])) >= 0.9*nrow(raw_training)))
+raw_training <- raw_training[, valid_columns]
+```
+
+## Setting Up Data Partition
+60% data for training and 40% for testing
+```{r echo=TRUE}
+library(caret)
+inTrain = createDataPartition(raw_training$classe, p=0.60, list=FALSE)
+training = raw_training[inTrain,]
+testing = raw_training[-inTrain,]
+```
+
+## Modelling
+We will use random forest model.
+```{r echo=TRUE}
+library(randomForest)
+rfmodel <- randomForest(classe~.,data=training)
+rfmodel
+```
+
+## Evaluating Model
+Evaluate the model results through confusion Matrix
+```{r echo=TRUE}
+confusionMatrix(predict(rfmodel,newdata=testing[,-ncol(testing)]),testing$classe)
+```
+Overall model accuracy is about 99.22% which is not too bad.
+
+
+## Prediction Assignment Submission
+Gerneratings files to be uploaded.
+```{r echo=TRUE}
+error_sample <- predict(rfmodel, raw_testing, type="class")
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(error_sample)
+```
